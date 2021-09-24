@@ -1,0 +1,78 @@
+version: '3.7'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile
+      args:
+        USER_ID: 1000
+        GROUP_ID: 1000
+        DJANGO_ENV: test
+    command: python3 /app/src/manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src:cached
+      - ./runtime:/app/runtime:cached
+      - ./env:/app/env:delegated
+      - ./files/media:/app/files/media
+      - ./files/smedia:/app/files/smedia
+      - ./files/static:/app/files/static
+    env_file:
+      - ./.env
+    depends_on:
+      - db
+  db:
+    image: "postgres:12"
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data:delegated
+    env_file:
+      - ./.env
+
+  centrifugo:
+    image: "centrifugo/centrifugo"
+    command: centrifugo -c config.json
+    ports:
+      - "9007:8000"
+      - "9006:9006"
+    volumes:
+      - ./centrifugo:/centrifugo
+    depends_on:
+      - app
+
+  redis:
+    image: redis:6-alpine
+    command:
+      - 'redis-server'
+      - '--appendonly yes'
+      - '--requirepass ${REDIS_PASSWORD}'
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis:/data
+    env_file:
+      - ./.env
+    depends_on:
+      - app
+
+  pgadmin:
+    image: "dpage/pgadmin4"
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_CONFIG_MAX_SESSION_IDLE_TIME: 3600
+    logging:
+      driver: 'none'
+    volumes:
+      - pgadmindata:/var/lib/pgadmin:delegated
+    env_file:
+      - ./.env
+    depends_on:
+      - db
+
+volumes:
+  dbdata:
+  redis:
+  pgadmindata:

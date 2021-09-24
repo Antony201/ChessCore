@@ -1,0 +1,43 @@
+stages:
+  - build
+  - test
+  - deploy
+
+build_stage:
+  stage: build
+  tags:
+    - mercury.xamtal.ru
+  script:
+    - cd /var/www/api.chessmatch.mercury.xamtal.ru
+    - git pull origin develop
+    - docker-compose -f docker-compose.stage.yml build --force-rm
+  when: on_success
+  only:
+    refs:
+      - develop
+
+test_stage:
+  stage: test
+  tags:
+    - mercury.xamtal.ru
+  script:
+    - cd /var/www/api.chessmatch.mercury.xamtal.ru
+    - docker-compose -f docker-compose.stage.yml run --rm app make test
+  when: on_success
+  only:
+    refs:
+      - develop
+
+deploy_stage:
+  stage: deploy
+  tags:
+    - mercury.xamtal.ru
+  script:
+    - cd /var/www/api.chessmatch.mercury.xamtal.ru
+    - docker-compose -f docker-compose.stage.yml exec -T app make migrate
+    - docker-compose -f docker-compose.stage.yml down
+    - docker-compose -f docker-compose.stage.yml up -d
+  when: on_success
+  only:
+    refs:
+      - develop

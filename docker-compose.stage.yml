@@ -1,0 +1,67 @@
+version: '3.7'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile
+      args:
+        USER_ID: 997
+        GROUP_ID: 995
+        DJANGO_ENV: development
+    command: python3 manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./files/media:/app/files/media
+      - ./files/smedia:/app/files/smedia
+      - ./files/static:/app/files/static
+      - ./runtime:/app/runtime
+    env_file:
+      - ./.env
+    restart: always
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: "postgres:12"
+    expose:
+      - 5432
+    volumes:
+      - dbdata:/var/lib/postgresql/data:delegated
+    env_file:
+      - ./.env.db
+    restart: always
+
+  pgadmin:
+    image: "dpage/pgadmin4"
+    ports:
+      - "5051:80"
+    environment:
+      PGADMIN_CONFIG_MAX_SESSION_IDLE_TIME: 3600
+    logging:
+      driver: 'none'
+    volumes:
+      - pgadmindata:/var/lib/pgadmin:delegated
+    env_file:
+      - ./.env
+    depends_on:
+      - db
+
+  redis:
+    image: redis:6-alpine
+    command:
+      - 'redis-server'
+      - '--appendonly yes'
+      - '--requirepass ${REDIS_PASSWORD}'
+    expose:
+      - 6379
+    volumes:
+      - redis:/data
+    env_file:
+      - ./.env
+
+volumes:
+  dbdata:
+  pgadmindata:
+  redis:

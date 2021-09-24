@@ -1,0 +1,97 @@
+version: '3.7'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile
+      args:
+        USER_ID: 1000
+        GROUP_ID: 1000
+        DJANGO_CONFIGURATION: production
+    command: /app/env/bin/gunicorn --bind 0.0.0.0:8000 --timeout 3600 --workers 8 config.wsgi:application
+    ports:
+      - "8000:8000"
+    volumes:
+      - /var/local/behemoth/files/media:/app/files/media
+      - /var/local/behemoth/files/smedia:/app/files/smedia
+      - /var/local/behemoth/files/static:/app/files/static
+      - ./runtime:/app/runtime
+    env_file:
+      - ./.env
+    restart: always
+    depends_on:
+      - db
+
+  centrifugo:
+    image: "centrifugo/centrifugo"
+    command: centrifugo -c config.json
+    ports:
+      - "9007:8000"
+    volumes:
+      - ./centrifugo:/centrifugo
+    depends_on:
+      - app
+
+  db:
+    image: "postgres:12"
+    expose:
+      - 5432
+    volumes:
+      - /var/local/behemoth/db:/var/lib/postgresql/data:delegated
+    env_file:
+      - ./.env.db
+    restart: always
+
+  celery:
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile
+      args:
+        USER_ID: 1000
+        GROUP_ID: 1000
+        DJANGO_CONFIGURATION: production
+    entrypoint: ["/app/celery_entrypoint.sh"]
+    volumes:
+      - /var/local/behemoth/files/media:/app/files/media
+      - /var/local/behemoth/files/smedia:/app/files/smedia
+      - /var/local/behemoth/files/static:/app/files/static
+      - ./runtime:/app/runtime
+    env_file:
+      - ./.env
+    depends_on:
+      - app
+      - redis
+
+  redis:
+    image: redis:6-alpine
+    command:
+      - 'redis-server'
+      - '--appendonly yes'
+      - '--requirepass ${REDIS_PASSWORD}'
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis:/data
+    env_file:
+      - ./.env
+    depends_on:
+      - app
+
+  pgadmin:
+    image: "dpage/pgadmin4"
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_CONFIG_MAX_SESSION_IDLE_TIME: 3600
+    logging:
+      driver: 'none'
+    volumes:
+      - pgadmindata:/var/lib/pgadmin:delegated
+    env_file:
+      - ./.env
+    depends_on:
+      - db
+
+volumes:
+  pgadmindata:
+  redis:

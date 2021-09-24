@@ -1,0 +1,11 @@
+{% load static i18n %}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>{% blocktrans %}
+  Hi ,
+  Please click on the link to confirm your registration,
+  https://{{ url }}?token={{ token }}{% endblocktrans %}
+</body>
+</html>
